@@ -203,7 +203,7 @@ a.btn{ text-decoration:none; display:inline-block; }
 .toggle input:checked + .slider{ background:var(--good); }
 .toggle input:checked + .slider:before{ transform:translateX(18px); }
 
-.svc-edit-row{ display:grid; grid-template-columns:1.2fr 2fr 0.8fr 0.7fr 1.4fr auto; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;}
+.svc-edit-row{ display:grid; grid-template-columns:1.2fr 2fr 0.8fr 0.7fr 1.4fr 1.4fr auto; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;}
 .blocked-chip{ display:inline-flex; align-items:center; gap:6px; background:#f3ebe4; border-radius:999px; padding:5px 12px; font-size:12px; margin:4px 6px 0 0;}
 .blocked-chip button{ background:none;border:none;color:var(--danger);cursor:pointer;font-weight:700;}
 
@@ -257,6 +257,7 @@ view: 'book',
   customMode: false,
   selectedDate: null,
   selectedSlot: null,
+referralCode: '',
   form: { name:'', phone:'', email:'', address:'', notes:'' },
 customForm: { description:'', location:'', preferredDate:'', preferredTime:'', name:'', phone:'', email:'' },
   lastBooking: null,
@@ -268,10 +269,10 @@ const DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
 const DAY_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 const DEFAULT_SERVICES = [
-{id:'driveway', name:'Driveway', desc:'Full driveway wash, oil-stain pre-treatment included.', price:140, duration:2, link:'https://www.paypal.com/ncp/payment/TGRGGSUECGZML'},
-{id:'sidewalk', name:'Sidewalk', desc:'Walkways and paths, edge to edge.', price:80, duration:1, link:'https://www.paypal.com/ncp/payment/RJG4VNC5GA3FJ'},
-{id:'curb', name:'Curb', desc:'Street-facing curb, tire marks and grime.', price:40, duration:1, link:'https://www.paypal.com/ncp/payment/57FK4ME7VNUUJ'},
-{id:'fence', name:'Fence', desc:'Wood, vinyl, or metal fencing, priced per project.', price:150, duration:3, link:''}
+{id:'driveway', name:'Driveway', desc:'Full driveway wash, oil-stain pre-treatment included.', price:140, duration:2, link:'https://www.paypal.com/ncp/payment/TGRGGSUECGZML', discountLink:'https://www.paypal.com/ncp/payment/5N75LGJYXX26N'},
+{id:'sidewalk', name:'Sidewalk', desc:'Walkways and paths, edge to edge.', price:80, duration:1, link:'https://www.paypal.com/ncp/payment/RJG4VNC5GA3FJ', discountLink:'https://www.paypal.com/ncp/payment/6L4M4W4S32PW4'},
+{id:'curb', name:'Curb', desc:'Street-facing curb, tire marks and grime.', price:40, duration:1, link:'https://www.paypal.com/ncp/payment/57FK4ME7VNUUJ', discountLink:'https://www.paypal.com/ncp/payment/N3UHUMEKJPABS'},
+{id:'fence', name:'Fence', desc:'Wood, vinyl, or metal fencing, priced per project.', price:150, duration:3, link:'', discountLink:''}
 ];
 const DEFAULT_HOURS = Object.fromEntries(DAY_KEYS.map(k=>[k,{open:true,start:'08:00',end:'17:00'}]));
 
@@ -325,7 +326,7 @@ function getService(id){ return DATA.services.find(s=>s.id===id); }
 function getSelectedServices(){ return state.selectedServiceIds.map(id=>getService(id)).filter(Boolean); }
 function subtotalPrice(){ return getSelectedServices().reduce((a,s)=>a+s.price,0); }
 function discountAmount(){ return getSelectedServices().length>1 ? 10 : 0; }
-function totalPrice(){ return Math.max(0, subtotalPrice() - discountAmount()); }
+const REFERRAL_CODE = 'FRIEND25'; function referralActive(){ return (state.referralCode||'').trim().toUpperCase() === REFERRAL_CODE; } function referralDiscountAmount(){ return referralActive() ? Math.round(subtotalPrice()*0.25) : 0; } function totalPrice(){ return Math.max(0, subtotalPrice() - discountAmount() - referralDiscountAmount()); }
 function totalDuration(){ return getSelectedServices().reduce((a,s)=>a+s.duration,0); }
 function serviceNames(ids){ return (ids||[]).map(id=>getService(id)?.name).filter(Boolean).join(' + '); }
 
@@ -406,7 +407,7 @@ html += `<div class="summary-box">
 <div>${selected.map(s=>`<span class="chip">${escapeHtml(s.name)} · ${fmtMoney(s.price)}<button onclick="pickService('${s.id}')">&times;</button></span>`).join('')}</div>
 ${disc>0 ? `<div class="summary-row"><span>Subtotal</span><span>${fmtMoney(subtotalPrice())}</span></div>
 <div class="summary-row" style="color:var(--good);"><span>Add-on discount</span><span>&minus;${fmtMoney(disc)}</span></div>` : ''}
-<div class="summary-row total"><span>Total</span><span>${fmtMoney(totalPrice())} · ${totalDuration()} hr${totalDuration()==1?'':'s'}</span></div>
+${referralDiscountAmount()>0 ? `<div class="summary-row" style="color:var(--good);"><span>Referral discount (25%)</span><span>&minus;${fmtMoney(referralDiscountAmount())}</span></div>` : ''}<div class="summary-row total"><span>Total</span><span>${fmtMoney(totalPrice())} · ${totalDuration()} hr${totalDuration()==1?'':'s'}</span></div><div style="margin-top:12px; display:flex; gap:8px;"><input type="text" id="referralInput" placeholder="Referral code" value="${escapeAttr(state.referralCode)}" style="flex:1; padding:10px 12px; border:2px solid #e2e0d8; border-radius:8px; font-family:'Inter',sans-serif; font-size:14px;"><button class="btn btn-ghost" onclick="applyReferralCode()">Apply</button></div>${referralActive() ? `<div style="color:var(--good); font-size:12px; margin-top:6px;">&#10003; Referral code applied — 25% off</div>` : (state.referralCode ? `<div style="color:var(--danger); font-size:12px; margin-top:6px;">Code not recognized.</div>` : '')}
 </div>`;
 }
 
@@ -459,7 +460,7 @@ html += `
 <div class="summary-box">
 ${selected.map(s=>`<div class="summary-row"><span>${escapeHtml(s.name)}</span><span>${fmtMoney(s.price)}</span></div>`).join('')}
 ${discountAmount()>0 ? `<div class="summary-row" style="color:var(--good);"><span>Add-on discount</span><span>&minus;${fmtMoney(discountAmount())}</span></div>` : ''}
-<div class="summary-row"><span>Date &amp; time</span><span>${dateLabel(state.selectedDate).dow} ${dateLabel(state.selectedDate).dom} · ${fmtTimeMin(state.selectedSlot)}</span></div>
+${referralDiscountAmount()>0 ? `<div class="summary-row" style="color:var(--good);"><span>Referral discount (25%)</span><span>&minus;${fmtMoney(referralDiscountAmount())}</span></div>` : ''}<div class="summary-row"><span>Date &amp; time</span><span>${dateLabel(state.selectedDate).dow} ${dateLabel(state.selectedDate).dom} · ${fmtTimeMin(state.selectedSlot)}</span></div>
 <div class="summary-row total"><span>Total due</span><span>${fmtMoney(totalPrice())}</span></div>
 ${renderPayArea()}
 </div>`;
@@ -597,7 +598,7 @@ DATA.blocked.map(d=>`<span class="blocked-chip">${d}<button onclick="removeBlock
 html += `<div class="step-label"><h2>Services &amp; pricing</h2></div>
 <div class="admin-card">
 <div class="svc-edit-row" style="font-weight:700;color:#999;text-transform:uppercase;font-size:11px;">
-<span>Name</span><span>Description</span><span>Price</span><span>Hrs</span><span>Payment link (optional)</span><span></span>
+<span>Name</span><span>Description</span><span>Price</span><span>Hrs</span><span>Payment link (optional)</span><span>Referral discount link (optional)</span><span></span>
 </div>`;
 DATA.services.forEach(s=>{
 html += `<div class="svc-edit-row">
@@ -605,7 +606,7 @@ html += `<div class="svc-edit-row">
 <input type="text" value="${escapeAttr(s.desc)}" onchange="editService('${s.id}','desc',this.value)">
 <input type="text" value="${s.price}" onchange="editService('${s.id}','price',this.value)">
 <input type="text" value="${s.duration}" onchange="editService('${s.id}','duration',this.value)">
-<input type="text" placeholder="https://" value="${escapeAttr(s.link)}" onchange="editService('${s.id}','link',this.value)">
+<input type="text" placeholder="https://" value="${escapeAttr(s.link)}" onchange="editService('${s.id}','link',this.value)"><input type="text" placeholder="https://" value="${escapeAttr(s.discountLink||'')}" onchange="editService('${s.id}','discountLink',this.value)">
 <button class="btn-danger" onclick="deleteService('${s.id}')">Remove</button>
 </div>`;
 });
@@ -674,7 +675,7 @@ render();
 }
 function pickDate(d){ state.selectedDate=d; state.selectedSlot=null; render(); }
 function pickSlot(t){ state.selectedSlot=t; render(); }
-function updateForm(field,val){ state.form[field]=val; }
+function updateForm(field,val){ state.form[field]=val; } function applyReferralCode(){ const el = document.getElementById('referralInput'); state.referralCode = el ? el.value : ''; render(); }
 function updateCustomForm(field,val){ state.customForm[field]=val; }
 
 async function commitBooking(status){
@@ -686,7 +687,7 @@ date: state.selectedDate,
 timeMin: state.selectedSlot,
 durationHours: totalDuration(),
 price: totalPrice(),
-discount: discountAmount(),
+discount: discountAmount() + referralDiscountAmount(), referralCode: referralActive() ? REFERRAL_CODE : null,
 name: state.form.name, phone: state.form.phone, email: state.form.email,
 address: state.form.address, notes: state.form.notes,
 status
@@ -697,11 +698,7 @@ state.lastBooking = b;
 render();
 }
 function payDemo(){ commitBooking('confirmed'); }
-function payViaLink(){
-const svc = getSelectedServices()[0];
-window.open(svc.link, '_blank');
-commitBooking('pending-payment');
-}
+function payViaLink(){ const svc = getSelectedServices()[0]; const link = (referralActive() && svc.discountLink) ? svc.discountLink : svc.link; window.open(link, '_blank'); commitBooking('pending-payment'); }
 function requestPaymentLink(){ commitBooking('pending-payment'); }
 function resetBooking(){
 state.selectedServiceIds=[]; state.customMode=false; state.selectedDate=null; state.selectedSlot=null;
