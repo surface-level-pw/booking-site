@@ -274,7 +274,7 @@ const DEFAULT_SERVICES = [
 {id:'curb', name:'Curb', desc:'Street-facing curb, tire marks and grime.', price:40, duration:1, link:'https://www.paypal.com/ncp/payment/57FK4ME7VNUUJ', discountLink:'https://www.paypal.com/ncp/payment/VQ4PUCK9J9ZS6'},
 {id:'fence', name:'Fence', desc:'Wood, vinyl, or metal fencing, priced per project.', price:150, duration:3, link:'', discountLink:''}
 ];
-const DEFAULT_HOURS = Object.fromEntries(DAY_KEYS.map(k=>[k,{open:true,start:'08:00',end:'17:00'}]));
+const DEFAULT_HOURS = Object.fromEntries(DAY_KEYS.map(k=>[k,{open:true,start:'08:00',end:'17:00'}])); const SYNC_URL = 'https://script.google.com/macros/s/AKfycbz-eUT_IkxsEY1b2PvoNEWasUt9n9DCui97-tFh5jJUkU6Wv-z2ogiTHTEk2KRNqr1M/exec'; const SYNC_SECRET = 'sl2026-8f2ke91zq'; function syncToSheet(payload){ try{ fetch(SYNC_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({secret:SYNC_SECRET}, payload)) }); }catch(e){ console.error('sync failed', e); } }const SYNC_URL = 'https://script.google.com/macros/s/AKfycbz-eUT_IkxsEY1b2PvoNEWasUt9n9DCui97-tFh5jJUkU6Wv-z2ogiTHTEk2KRNqr1M/exec';
 
 async function loadData(){
 DATA.services = await getJSON('pw:services', DEFAULT_SERVICES);
@@ -694,7 +694,7 @@ status
 };
 DATA.bookings.push(b);
 await saveBookings();
-state.lastBooking = b;
+state.lastBooking = b; syncToSheet({ type:'booking', id:b.id, date:b.date, timeMin:b.timeMin, durationHours:b.durationHours, services: serviceNames(b.serviceIds), name:b.name, phone:b.phone, email:b.email, address:b.address, notes:b.notes, subtotal: subtotalPrice(), discount: b.discount, total: b.price, discountCode: b.referralCode || '', status: b.status });
 render();
 }
 function payDemo(){ commitBooking('confirmed'); }
@@ -714,7 +714,7 @@ id:'cr_'+Date.now(),
 description:f.description, location:f.location, preferredDate:f.preferredDate, preferredTime:f.preferredTime,
 name:f.name, phone:f.phone, email:f.email, status:'new', createdAt:new Date().toISOString()
 };
-DATA.customRequests.push(req);
+DATA.customRequests.push(req); syncToSheet({ type:'custom', id:req.id, description:req.description, location:req.location, preferredDate:req.preferredDate, preferredTime:req.preferredTime, name:req.name, phone:req.phone, email:req.email, status:req.status });
 await saveCustomRequests();
 const subject = encodeURIComponent('Custom Job Request — '+f.name);
 const bodyLines = [
