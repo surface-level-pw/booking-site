@@ -260,7 +260,7 @@ view: 'book',
 referralCode: '',
   form: { name:'', phone:'', email:'', address:'', notes:'' },
 customForm: { description:'', location:'', preferredDate:'', preferredTime:'', name:'', phone:'', email:'' },
-  lastBooking: null,
+  lastBooking: null, addressCheck: {status:'idle', distance:null, message:''},
   lastCustomRequest: null,
   admin: { unlocked:false, pinInput:'', newPinA:'', newPinB:'', newBlockDate:'' }
             };
@@ -274,7 +274,7 @@ const DEFAULT_SERVICES = [
 {id:'curb', name:'Curb', desc:'Street-facing curb, tire marks and grime.', price:40, duration:1, link:'https://www.paypal.com/ncp/payment/57FK4ME7VNUUJ', discountLink:'https://www.paypal.com/ncp/payment/VQ4PUCK9J9ZS6'},
 {id:'fence', name:'Fence', desc:'Wood, vinyl, or metal fencing, priced per project.', price:150, duration:3, link:'', discountLink:''}
 ];
-const DEFAULT_HOURS = Object.fromEntries(DAY_KEYS.map(k=>[k,{open:true,start:'08:00',end:'17:00'}])); const SYNC_URL = 'https://script.google.com/macros/s/AKfycbz-eUT_IkxsEY1b2PvoNEWasUt9n9DCui97-tFh5jJUkU6Wv-z2ogiTHTEk2KRNqr1M/exec'; const SYNC_SECRET = 'sl2026-8f2ke91zq'; function syncToSheet(payload){ try{ fetch(SYNC_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({secret:SYNC_SECRET}, payload)) }); }catch(e){ console.error('sync failed', e); } }
+const DEFAULT_HOURS = Object.fromEntries(DAY_KEYS.map(k=>[k,{open:true,start:'08:00',end:'17:00'}])); const SYNC_URL = 'https://script.google.com/macros/s/AKfycbz-eUT_IkxsEY1b2PvoNEWasUt9n9DCui97-tFh5jJUkU6Wv-z2ogiTHTEk2KRNqr1M/exec'; const SYNC_SECRET = 'sl2026-8f2ke91zq'; function syncToSheet(payload){ try{ fetch(SYNC_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({secret:SYNC_SECRET}, payload)) }); }catch(e){ console.error('sync failed', e); } } const MAPS_API_KEY = 'AIzaSyDdYe60aUlOzlTb0spkEDLGo6HRLQJVG3g'; const SERVICE_BASE_LAT = 35.822; const SERVICE_BASE_LNG = -86.896; function haversineMiles(lat1,lng1,lat2,lng2){ const R=3958.8; const toRad=function(d){return d*Math.PI/180;}; const dLat=toRad(lat2-lat1); const dLng=toRad(lng2-lng1); const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)*Math.sin(dLng/2); return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); } async function checkAddress(){ const addr=(state.form.address||'').trim(); if(!addr){ state.addressCheck={status:'idle',distance:null,message:''}; render(); return; } state.addressCheck={status:'checking',distance:null,message:''}; render(); try{ const url='https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(addr)+'&key='+MAPS_API_KEY; const res=await fetch(url); const data=await res.json(); if(data.status!=='OK' || !data.results || !data.results[0]){ state.addressCheck={status:'error',distance:null,message:'Could not verify that address. Double-check it or try a nearby cross street.'}; render(); return; } const loc=data.results[0].geometry.location; const dist=haversineMiles(SERVICE_BASE_LAT,SERVICE_BASE_LNG,loc.lat,loc.lng); const radius=DATA.serviceRadiusMiles||25; if(dist<=radius){ state.addressCheck={status:'in',distance:dist,message:'Within our service area ('+dist.toFixed(1)+' mi).'}; } else { state.addressCheck={status:'out',distance:dist,message:'That address is about '+dist.toFixed(1)+' mi from our service area, max '+radius+' mi. We may not be able to service this location, contact us to check.'}; } }catch(e){ state.addressCheck={status:'error',distance:null,message:'Could not verify that address right now.'}; } render(); }
 
 async function loadData(){
 DATA.services = await getJSON('pw:services', DEFAULT_SERVICES);
@@ -282,7 +282,7 @@ DATA.hours = await getJSON('pw:hours', DEFAULT_HOURS);
 DATA.blocked = await getJSON('pw:blocked', []);
 DATA.bookings = await getJSON('pw:bookings', []);
 DATA.pin = await getJSON('pw:pin', null);
-DATA.customRequests = await getJSON('pw:customRequests', []);
+DATA.customRequests = await getJSON('pw:customRequests', []); DATA.serviceRadiusMiles = await getJSON('pw:serviceRadiusMiles', 25);
 }
 async function getJSON(key, fallback){
 try{
@@ -298,7 +298,7 @@ async function saveHours(){ await setJSON('pw:hours', DATA.hours); }
 async function saveBlocked(){ await setJSON('pw:blocked', DATA.blocked); }
 async function saveBookings(){ await setJSON('pw:bookings', DATA.bookings); }
 async function savePin(){ await setJSON('pw:pin', DATA.pin); }
-async function saveCustomRequests(){ await setJSON('pw:customRequests', DATA.customRequests); }
+async function saveCustomRequests(){ await setJSON('pw:customRequests', DATA.customRequests); } async function saveServiceRadius(){ await setJSON('pw:serviceRadiusMiles', DATA.serviceRadiusMiles); }
 
 function pad(n){ return n<10 ? '0'+n : ''+n; }
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
@@ -453,7 +453,7 @@ html += `
 <div><label>Full name</label><input type="text" value="${escapeAttr(state.form.name)}" oninput="updateForm('name',this.value)"></div>
 <div><label>Phone</label><input type="tel" value="${escapeAttr(state.form.phone)}" oninput="updateForm('phone',this.value)"></div>
 <div><label>Email</label><input type="email" value="${escapeAttr(state.form.email)}" oninput="updateForm('email',this.value)"></div>
-<div><label>Property address</label><input type="text" value="${escapeAttr(state.form.address)}" oninput="updateForm('address',this.value)"></div>
+<div class="full"><label>Property address</label><input type="text" value="${escapeAttr(state.form.address)}" oninput="updateForm('address',this.value)" onblur="checkAddress()"><div style="margin-top:6px;font-size:12px;${state.addressCheck.status==='in'?'color:var(--good);':(state.addressCheck.status==='out'?'color:var(--danger);':'color:#888;')}">${state.addressCheck.status==='checking'?'Checking service area...':escapeHtml(state.addressCheck.message||'')}</div></div>
 <div class="full"><label>Notes (gate code, specific stains, etc.)</label><textarea oninput="updateForm('notes',this.value)">${escapeHtml(state.form.notes)}</textarea></div>
 </div>
 
@@ -472,7 +472,7 @@ return html;
 function renderPayArea(){
 const selected = getSelectedServices();
 const total = totalPrice();
-const ready = state.form.name && state.form.phone && state.form.address;
+const ready = state.form.name && state.form.phone && state.form.address && state.addressCheck.status==='in';
 const anyLinkConfigured = DATA.services.some(s=>s.link);
 
 if(selected.length===1 && selected[0].link){
@@ -595,7 +595,7 @@ DATA.blocked.map(d=>`<span class="blocked-chip">${d}<button onclick="removeBlock
 </div>
 </div>`;
 
-html += `<div class="step-label"><h2>Services &amp; pricing</h2></div>
+html += `<div class="step-label"><h2>Service area</h2></div><div class="admin-card"><label>Maximum service radius in miles from your base location</label><input type="text" value="${DATA.serviceRadiusMiles}" onchange="updateServiceRadius(this.value)" style="max-width:160px;"><p style="font-size:12px;color:#888;margin-top:8px;">Customers whose address is farther than this will see a warning and the booking button will stay disabled.</p></div>`; html += `<div class="step-label"><h2>Services &amp; pricing</h2></div>
 <div class="admin-card">
 <div class="svc-edit-row" style="font-weight:700;color:#999;text-transform:uppercase;font-size:11px;">
 <span>Name</span><span>Description</span><span>Price</span><span>Hrs</span><span>Payment link (optional)</span><span>Discount code link (optional)</span><span></span>
@@ -703,7 +703,7 @@ function requestPaymentLink(){ commitBooking('pending-payment'); }
 function resetBooking(){
 state.selectedServiceIds=[]; state.customMode=false; state.selectedDate=null; state.selectedSlot=null;
 state.form={name:'',phone:'',email:'',address:'',notes:''};
-state.lastBooking=null;
+state.addressCheck={status:'idle',distance:null,message:''}; state.lastBooking=null;
 render();
                            }
 
@@ -759,7 +759,7 @@ if(!DATA.blocked.includes(state.admin.newBlockDate)) DATA.blocked.push(state.adm
 state.admin.newBlockDate='';
 await saveBlocked(); render();
 }
-async function removeBlockedDate(d){ DATA.blocked = DATA.blocked.filter(x=>x!==d); await saveBlocked(); render(); }
+async function removeBlockedDate(d){ DATA.blocked = DATA.blocked.filter(x=>x!==d); await saveBlocked(); render(); } async function updateServiceRadius(val){ DATA.serviceRadiusMiles = parseFloat(val)||25; await saveServiceRadius(); render(); }
 async function editService(id,field,val){
 const s = getService(id);
 if(field==='price'||field==='duration') val = parseFloat(val)||0;
