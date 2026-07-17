@@ -390,7 +390,7 @@ function setView(v){
 state.view = v;
 document.getElementById('nav-book').classList.toggle('active', v==='book');
 document.getElementById('nav-contact').classList.toggle('active', v==='contact');
-document.getElementById('nav-admin').classList.toggle('active', v==='admin');
+const navAdmin=document.getElementById('nav-admin'); if(navAdmin) navAdmin.classList.toggle('active', v==='admin');
 render();
 }
 
