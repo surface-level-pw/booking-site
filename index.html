@@ -242,7 +242,7 @@ footer{ text-align:center; padding:20px; font-size:12px; color:#999; }
   <nav>
   <button id="nav-book" class="active" onclick="setView('book')">Book a Job</button>
   <button id="nav-contact" onclick="setView('contact')">Contact</button>
-  <button id="nav-admin" onclick="setView('admin')">Business Dashboard</button>
+  
   </nav>
   </header>
 
@@ -276,6 +276,8 @@ const DEFAULT_SERVICES = [
 ];
 const DEFAULT_HOURS = Object.fromEntries(DAY_KEYS.map(k=>[k,{open:true,start:'08:00',end:'17:00'}])); const SYNC_URL = 'https://script.google.com/macros/s/AKfycbz-eUT_IkxsEY1b2PvoNEWasUt9n9DCui97-tFh5jJUkU6Wv-z2ogiTHTEk2KRNqr1M/exec'; const SYNC_SECRET = 'sl2026-8f2ke91zq'; function syncToSheet(payload){ try{ fetch(SYNC_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({secret:SYNC_SECRET}, payload)) }); }catch(e){ console.error('sync failed', e); } } const SERVICE_BASE_LAT = 35.822; const SERVICE_BASE_LNG = -86.896; function haversineMiles(lat1,lng1,lat2,lng2){ const R=3958.8; const toRad=function(d){return d*Math.PI/180;}; const dLat=toRad(lat2-lat1); const dLng=toRad(lng2-lng1); const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)*Math.sin(dLng/2); return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); } async function checkAddress(){ const addr=(state.form.address||'').trim(); if(!addr){ state.addressCheck={status:'idle',distance:null,message:''}; render(); return; } state.addressCheck={status:'checking',distance:null,message:''}; render(); try{ const url=SYNC_URL+'?action=geocode&address='+encodeURIComponent(addr); const res=await fetch(url); const data=await res.json(); if(!data.ok){ state.addressCheck={status:'error',distance:null,message:'Could not verify that address. Double-check it or try a nearby cross street.'}; render(); return; } const dist=haversineMiles(SERVICE_BASE_LAT,SERVICE_BASE_LNG,data.lat,data.lng); const radius=DATA.serviceRadiusMiles||25; if(dist<=radius){ state.addressCheck={status:'in',distance:dist,message:'Within our service area ('+dist.toFixed(1)+' mi).'}; } else { state.addressCheck={status:'out',distance:dist,message:'That address is about '+dist.toFixed(1)+' mi from our service area, max '+radius+' mi. We may not be able to service this location, contact us to check.'}; } }catch(e){ state.addressCheck={status:'error',distance:null,message:'Could not verify that address right now.'}; } render(); }
 
+let SETTINGS_DIRTY = false;
+let SETTINGS_SNAPSHOT = null;
 async function loadData(){
 DATA.services = await getJSON('pw:services', DEFAULT_SERVICES);
 DATA.hours = await getJSON('pw:hours', DEFAULT_HOURS);
@@ -283,6 +285,15 @@ DATA.blocked = await getJSON('pw:blocked', []);
 DATA.bookings = await getJSON('pw:bookings', []);
 DATA.pin = await getJSON('pw:pin', null);
 DATA.customRequests = await getJSON('pw:customRequests', []); DATA.serviceRadiusMiles = await getJSON('pw:serviceRadiusMiles', 25);
+try{
+const resp = await fetch(SYNC_URL + '?action=getSettings');
+const remote = await resp.json();
+if(remote && remote.services){ DATA.services = remote.services; await setJSON('pw:services', DATA.services); }
+if(remote && remote.hours){ DATA.hours = remote.hours; await setJSON('pw:hours', DATA.hours); }
+if(remote && typeof remote.serviceRadiusMiles === 'number'){ DATA.serviceRadiusMiles = remote.serviceRadiusMiles; await setJSON('pw:serviceRadiusMiles', DATA.serviceRadiusMiles); }
+}catch(e){ console.log('settings load failed', e); }
+SETTINGS_SNAPSHOT = JSON.stringify({services:DATA.services, hours:DATA.hours, serviceRadiusMiles:DATA.serviceRadiusMiles});
+SETTINGS_DIRTY = false;
 }
 async function getJSON(key, fallback){
 try{
@@ -299,6 +310,26 @@ async function saveBlocked(){ await setJSON('pw:blocked', DATA.blocked); }
 async function saveBookings(){ await setJSON('pw:bookings', DATA.bookings); }
 async function savePin(){ await setJSON('pw:pin', DATA.pin); }
 async function saveCustomRequests(){ await setJSON('pw:customRequests', DATA.customRequests); } async function saveServiceRadius(){ await setJSON('pw:serviceRadiusMiles', DATA.serviceRadiusMiles); }
+async function syncSettingsToServer(){
+try{
+fetch(SYNC_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({secret:SYNC_SECRET, type:'settings', settings:{services:DATA.services, hours:DATA.hours, serviceRadiusMiles:DATA.serviceRadiusMiles}}) });
+}catch(e){ console.log('settings sync failed', e); }
+}
+async function commitSettingsChanges(){
+await saveServices(); await saveHours(); await saveServiceRadius();
+await syncSettingsToServer();
+SETTINGS_SNAPSHOT = JSON.stringify({services:DATA.services, hours:DATA.hours, serviceRadiusMiles:DATA.serviceRadiusMiles});
+SETTINGS_DIRTY = false;
+render();
+}
+function discardSettingsChanges(){
+if(SETTINGS_SNAPSHOT){
+const saved = JSON.parse(SETTINGS_SNAPSHOT);
+DATA.services = saved.services; DATA.hours = saved.hours; DATA.serviceRadiusMiles = saved.serviceRadiusMiles;
+}
+SETTINGS_DIRTY = false;
+render();
+}
 
 function pad(n){ return n<10 ? '0'+n : ''+n; }
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
@@ -570,7 +601,7 @@ return `
 </div>`;
 }
 
-let html = `<div class="step-label"><h2>Weekly hours</h2></div>
+let html = (SETTINGS_DIRTY ? '<div class="admin-card" style="border:2px solid var(--amber);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;"><span style="font-weight:700;color:var(--amber);">You have unsaved changes to services, hours, or service area.</span><div class="btn-row"><button class="btn btn-primary" onclick="commitSettingsChanges()">Save Changes</button><button class="btn-danger" onclick="discardSettingsChanges()">Discard Changes</button></div></div>' : '') + `<div class="step-label"><h2>Weekly hours</h2></div>
 <div class="admin-card">`;
 DAY_KEYS.forEach((k,i)=>{
 const h = DATA.hours[k];
@@ -751,27 +782,27 @@ function tryUnlock(){
 if(state.admin.pinInput === DATA.pin){ state.admin.unlocked = true; render(); }
 else alert('Incorrect PIN');
 }
-async function toggleDay(k,open){ DATA.hours[k].open = open; await saveHours(); render(); }
-async function updateHour(k,field,val){ DATA.hours[k][field]=val; await saveHours(); render(); }
+function toggleDay(k,open){ DATA.hours[k].open = open; SETTINGS_DIRTY = true; render(); }
+function updateHour(k,field,val){ DATA.hours[k][field]=val; SETTINGS_DIRTY = true; render(); }
 async function addBlockedDate(){
 if(!state.admin.newBlockDate) return;
 if(!DATA.blocked.includes(state.admin.newBlockDate)) DATA.blocked.push(state.admin.newBlockDate);
 state.admin.newBlockDate='';
 await saveBlocked(); render();
 }
-async function removeBlockedDate(d){ DATA.blocked = DATA.blocked.filter(x=>x!==d); await saveBlocked(); render(); } async function updateServiceRadius(val){ DATA.serviceRadiusMiles = parseFloat(val)||25; await saveServiceRadius(); render(); }
-async function editService(id,field,val){
+async function removeBlockedDate(d){ DATA.blocked = DATA.blocked.filter(x=>x!==d); await saveBlocked(); render(); } function updateServiceRadius(val){ DATA.serviceRadiusMiles = parseFloat(val)||25; SETTINGS_DIRTY = true; render(); }
+function editService(id,field,val){
 const s = getService(id);
 if(field==='price'||field==='duration') val = parseFloat(val)||0;
-s[field]=val; await saveServices(); render();
+s[field]=val; SETTINGS_DIRTY = true; render();
 }
-async function addService(){
+function addService(){
 DATA.services.push({id:'svc_'+Date.now(), name:'New service', desc:'Description', price:50, duration:1, link:''});
-await saveServices(); render();
+SETTINGS_DIRTY = true; render();
 }
-async function deleteService(id){
+function deleteService(id){
 DATA.services = DATA.services.filter(s=>s.id!==id);
-await saveServices(); render();
+SETTINGS_DIRTY = true; render();
 }
 async function cancelBooking(id){
 const b = DATA.bookings.find(x=>x.id===id);
@@ -791,6 +822,8 @@ function escapeAttr(s){ return escapeHtml(s); }
 
 (async function init(){
 await loadData();
+const params = new URLSearchParams(location.search);
+if(params.get('portal') === 'sl-owner'){ state.view = 'admin'; }
 render();
 })();
 </script>
