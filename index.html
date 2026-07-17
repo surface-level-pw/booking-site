@@ -370,11 +370,12 @@ const startMin = timeStrToMin(h.start), endMin = timeStrToMin(h.end);
 const durMin = durationHours*60;
 let slots = [];
 for(let t=startMin; t+durMin<=endMin; t+=60){ slots.push(t); }
-if(dateStr === todayStr()){
-const now = new Date();
-const nowMin = now.getHours()*60+now.getMinutes()+60;
-slots = slots.filter(t=>t>=nowMin);
-}
+const cutoff = new Date(Date.now() + 12*60*60*1000);
+slots = slots.filter(t=>{
+const slotDt = new Date(dateStr+'T00:00:00');
+slotDt.setMinutes(slotDt.getMinutes()+t);
+return slotDt.getTime() >= cutoff.getTime();
+});
 const dayBookings = DATA.bookings.filter(b=>b.date===dateStr && b.status!=='cancelled');
 slots = slots.filter(t=>{
   const tEnd = t+durMin;
