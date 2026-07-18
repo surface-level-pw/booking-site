@@ -549,7 +549,7 @@ return `
 <div class="full"><label>Email</label><input type="email" value="${escapeAttr(f.email)}" oninput="updateCustomForm('email',this.value)"></div>
 </div>
 <div class="btn-row">
-<button class="btn btn-primary" ${ready?'':'disabled'} onclick="sendCustomRequest()">Send Request</button>
+<button class="btn btn-primary" id="customSendBtn" ${ready?'':'disabled'} onclick="sendCustomRequest()">Send Request</button>
 <button class="btn btn-ghost" onclick="toggleCustomMode()">Cancel</button>
 </div>
 <div class="demo-note">This opens an email to hello@surface-level.com with your details filled in — just hit send. We'll reply to say whether we can take the job, the price, and confirm a date and time. If you'd rather just pick a slot yourself, leave preferred date/time blank and mention "flexible" in the description.</div>
@@ -709,7 +709,7 @@ render();
 function pickDate(d){ state.selectedDate=d; state.selectedSlot=null; render(); }
 function pickSlot(t){ state.selectedSlot=t; render(); }
 function updateForm(field,val){ state.form[field]=val; } function applyReferralCode(){ const el = document.getElementById('referralInput'); state.referralCode = el ? el.value : ''; render(); }
-function updateCustomForm(field,val){ state.customForm[field]=val; }
+function updateCustomForm(field,val){ state.customForm[field]=val; const f=state.customForm; const ready = f.description && f.location && f.name && (f.email || f.phone); const btn=document.getElementById('customSendBtn'); if(btn) btn.disabled = !ready; }
 
 async function commitBooking(status){
 const selected = getSelectedServices();
