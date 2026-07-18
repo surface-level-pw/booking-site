@@ -180,7 +180,7 @@ font-family:'Inter',sans-serif;
 .btn-primary:hover{ background:var(--spray); color:var(--white); }
 .btn-primary:disabled{ background:#ccc; color:#888; cursor:not-allowed; }
 .btn-ghost{ background:none; border:2px solid var(--concrete-line); color:var(--concrete-dark); }
-.btn-danger{ background:none; border:2px solid var(--danger); color:var(--danger); padding:7px 14px; font-size:12px; border-radius:8px;}
+.btn-danger{ background:none; border:2px solid var(--danger); color:var(--danger); padding:7px 14px; font-size:12px; border-radius:8px;} .btn-complete{ background:none; border:2px solid var(--good); color:var(--good); padding:7px 14px; font-size:12px; border-radius:8px; margin-right:6px;}
 .btn-row{ display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; }
 a.btn{ text-decoration:none; display:inline-block; }
 
@@ -213,7 +213,7 @@ table.bookings td{ padding:8px 6px; border-bottom:1px solid #f0f0f0; vertical-al
 .status-pill{ font-size:11px; padding:3px 9px; border-radius:999px; font-weight:600; text-transform:uppercase;}
 .status-confirmed{ background:#e3f3e8; color:var(--good); }
   .status-pending{ background:#fdf1de; color:var(--amber); }
-  .status-cancelled{ background:#f7e6e4; color:var(--danger); }
+  .status-cancelled{ background:#f7e6e4; color:var(--danger); } .status-completed{ background:#e3f3e8; color:var(--good); }
 
   .pin-gate{ max-width:340px; margin:60px auto; text-align:center; background:var(--white); padding:30px; border-radius:14px; box-shadow:var(--shadow);}
 .pin-gate input{ text-align:center; letter-spacing:6px; font-size:20px; font-family:'IBM Plex Mono',monospace;}
@@ -275,7 +275,7 @@ const DEFAULT_SERVICES = [
 {id:'curb', name:'Curb', desc:'Street-facing curb, tire marks and grime.', price:40, duration:1, link:'https://www.paypal.com/ncp/payment/57FK4ME7VNUUJ', discountLink:'https://www.paypal.com/ncp/payment/VQ4PUCK9J9ZS6'},
 {id:'fence', name:'Fence', desc:'Wood, vinyl, or metal fencing, priced per project.', price:150, duration:3, link:'https://www.paypal.com/ncp/payment/VP3RPEQAEV46C', discountLink:'https://www.paypal.com/ncp/payment/R48HZH7J9RNEA'}
 ];
-const DEFAULT_HOURS = Object.fromEntries(DAY_KEYS.map(k=>[k,{open:true,start:'08:00',end:'17:00'}])); const SYNC_URL = 'https://script.google.com/macros/s/AKfycbz-eUT_IkxsEY1b2PvoNEWasUt9n9DCui97-tFh5jJUkU6Wv-z2ogiTHTEk2KRNqr1M/exec'; const SYNC_SECRET = 'sl2026-8f2ke91zq'; function syncToSheet(payload){ try{ fetch(SYNC_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({secret:SYNC_SECRET}, payload)) }); }catch(e){ console.error('sync failed', e); } } const SERVICE_BASE_LAT = 35.822; const SERVICE_BASE_LNG = -86.896; function haversineMiles(lat1,lng1,lat2,lng2){ const R=3958.8; const toRad=function(d){return d*Math.PI/180;}; const dLat=toRad(lat2-lat1); const dLng=toRad(lng2-lng1); const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)*Math.sin(dLng/2); return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); } async function checkAddress(){ const addr=(state.form.address||'').trim(); if(!addr){ state.addressCheck={status:'idle',distance:null,message:''}; render(); return; } state.addressCheck={status:'checking',distance:null,message:''}; render(); try{ const url=SYNC_URL+'?action=geocode&address='+encodeURIComponent(addr); const res=await fetch(url); const data=await res.json(); if(!data.ok){ state.addressCheck={status:'error',distance:null,message:'Could not verify that address. Double-check it or try a nearby cross street.'}; render(); return; } const dist=haversineMiles(SERVICE_BASE_LAT,SERVICE_BASE_LNG,data.lat,data.lng); const radius=DATA.serviceRadiusMiles||25; if(dist<=radius){ state.addressCheck={status:'in',distance:dist,message:'Within our service area ('+dist.toFixed(1)+' mi).'}; } else { state.addressCheck={status:'out',distance:dist,message:'That address is about '+dist.toFixed(1)+' mi from our service area, max '+radius+' mi. We may not be able to service this location, contact us to check.'}; } }catch(e){ state.addressCheck={status:'error',distance:null,message:'Could not verify that address right now.'}; } render(); }
+const DEFAULT_HOURS = Object.fromEntries(DAY_KEYS.map(k=>[k,{open:true,start:'08:00',end:'17:00'}])); const SYNC_URL = 'https://script.google.com/macros/s/AKfycbz-eUT_IkxsEY1b2PvoNEWasUt9n9DCui97-tFh5jJUkU6Wv-z2ogiTHTEk2KRNqr1M/exec'; const SYNC_SECRET = 'sl2026-8f2ke91zq'; const REVIEW_LINK = 'https://www.facebook.com/profile.php?id=61591588727950&sk=reviews'; function syncToSheet(payload){ try{ fetch(SYNC_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({secret:SYNC_SECRET}, payload)) }); }catch(e){ console.error('sync failed', e); } } const SERVICE_BASE_LAT = 35.822; const SERVICE_BASE_LNG = -86.896; function haversineMiles(lat1,lng1,lat2,lng2){ const R=3958.8; const toRad=function(d){return d*Math.PI/180;}; const dLat=toRad(lat2-lat1); const dLng=toRad(lng2-lng1); const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)*Math.sin(dLng/2); return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); } async function checkAddress(){ const addr=(state.form.address||'').trim(); if(!addr){ state.addressCheck={status:'idle',distance:null,message:''}; render(); return; } state.addressCheck={status:'checking',distance:null,message:''}; render(); try{ const url=SYNC_URL+'?action=geocode&address='+encodeURIComponent(addr); const res=await fetch(url); const data=await res.json(); if(!data.ok){ state.addressCheck={status:'error',distance:null,message:'Could not verify that address. Double-check it or try a nearby cross street.'}; render(); return; } const dist=haversineMiles(SERVICE_BASE_LAT,SERVICE_BASE_LNG,data.lat,data.lng); const radius=DATA.serviceRadiusMiles||25; if(dist<=radius){ state.addressCheck={status:'in',distance:dist,message:'Within our service area ('+dist.toFixed(1)+' mi).'}; } else { state.addressCheck={status:'out',distance:dist,message:'That address is about '+dist.toFixed(1)+' mi from our service area, max '+radius+' mi. We may not be able to service this location, contact us to check.'}; } }catch(e){ state.addressCheck={status:'error',distance:null,message:'Could not verify that address right now.'}; } render(); }
 
 let SETTINGS_DIRTY = false;
 let SETTINGS_SNAPSHOT = null;
@@ -682,8 +682,8 @@ html += `<tr>
 <td>${escapeHtml(b.name)}<br><span style="color:#999;">${escapeHtml(b.phone)}</span></td>
 <td>${escapeHtml(b.address)}</td>
 <td>${fmtMoney(b.price)}</td>
-<td><span class="status-pill status-${b.status==='confirmed'?'confirmed':(b.status==='pending-payment'?'pending':'cancelled')}">${b.status}</span></td>
-<td><button class="btn-danger" onclick="cancelBooking('${b.id}')">Cancel</button></td>
+<td><span class="status-pill status-${b.status==='confirmed'?'confirmed':b.status==='pending-payment'?'pending':b.status==='completed'?'completed':'cancelled'}">${b.status==='completed'?'Job Complete':b.status}</span></td>
+<td>${b.status!=='completed'&&b.status!=='cancelled'?`<button class="btn-complete" onclick="completeBooking('${b.id}')">Job Complete</button>`:''}<button class="btn-danger" onclick="cancelBooking('${b.id}')">Cancel</button></td>
 </tr>`;
 });
 html += `</tbody></table>`;
@@ -810,7 +810,7 @@ async function cancelBooking(id){
 const b = DATA.bookings.find(x=>x.id===id);
 if(b){ b.status='cancelled'; await saveBookings(); render(); }
 }
-async function updateCustomStatus(id,val){
+async function completeBooking(id){ const b2 = DATA.bookings.find(x=>x.id===id); if(!b2) return; if(!confirm('Send '+b2.name+' a thank-you email and mark this job complete?')) return; b2.status='completed'; await saveBookings(); syncToSheet({type:'jobComplete', id:b2.id, name:b2.name, email:b2.email, phone:b2.phone, address:b2.address, services:serviceNames(b2.serviceIds), reviewLink:REVIEW_LINK}); render(); } async function updateCustomStatus(id,val){
 const r = DATA.customRequests.find(x=>x.id===id);
 if(r){ r.status=val; await saveCustomRequests(); render(); }
 }
