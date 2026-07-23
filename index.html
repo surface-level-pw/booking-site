@@ -808,7 +808,7 @@ SETTINGS_DIRTY = true; render();
 }
 async function cancelBooking(id){
 const b = DATA.bookings.find(x=>x.id===id);
-if(b){ b.status='cancelled'; await saveBookings(); render(); }
+if(b){ b.status='cancelled'; await saveBookings(); syncToSheet({type:'cancel', id:b.id}); render(); }
 }
 async function completeBooking(id){ const b2 = DATA.bookings.find(x=>x.id===id); if(!b2) return; if(!confirm('Send '+b2.name+' a thank-you email and mark this job complete?')) return; b2.status='completed'; await saveBookings(); syncToSheet({type:'jobComplete', id:b2.id, name:b2.name, email:b2.email, phone:b2.phone, address:b2.address, services:serviceNames(b2.serviceIds), reviewLink:REVIEW_LINK}); render(); } async function updateCustomStatus(id,val){
 const r = DATA.customRequests.find(x=>x.id===id);
